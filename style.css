@@ -1,0 +1,46 @@
+:root {
+  --bg-color: #ffffff;
+  --text-color: #000000;
+  --card-bg: #f0f0f0;
+}
+body.dark {
+  --bg-color: #1e1e1e;
+  --text-color: #ffffff;
+  --card-bg: #2e2e2e;
+}
+body {
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  padding: 1em;
+  background: var(--card-bg);
+  align-items: center;
+}
+input, button {
+  padding: 0.5em;
+  margin: 0.3em;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+.meal-group {
+  background: var(--card-bg);
+  padding: 1em;
+  margin: 1em 0;
+  border-radius: 8px;
+}
+.hidden {
+  display: none;
+}
+.theme-switch {
+  cursor: pointer;
+}
+iframe {
+  border: none;
+  margin-top: 1em;
+}

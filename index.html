@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Menu Giornaliero</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Menu Giornaliero</h1>
+      <label class="theme-switch">
+        <input type="checkbox" id="themeToggle">
+        <span>🌙 / ☀️</span>
+      </label>
+    </header>
+
+    <section id="loginSection">
+      <input type="text" id="username" placeholder="Nome utente" />
+      <input type="password" id="adminPass" placeholder="Password admin (se applicabile)" />
+      <button onclick="login()">Entra</button>
+    </section>
+
+    <section id="menuSection" class="hidden">
+      <h2>Benvenuto, <span id="userDisplay"></span></h2>
+      <label for="day">Giorno:</label>
+      <input type="number" id="day" min="1" max="31" />
+
+      <div class="meal-group">
+        <h3>Pranzo</h3>
+        <input type="text" id="pranzoPrimo" placeholder="Primo" />
+        <input type="text" id="pranzoSecondo" placeholder="Secondo" />
+        <input type="text" id="pranzoContorno" placeholder="Contorno" />
+      </div>
+
+      <div class="meal-group">
+        <h3>Cena</h3>
+        <input type="text" id="cenaPrimo" placeholder="Primo" />
+        <input type="text" id="cenaSecondo" placeholder="Secondo" />
+        <input type="text" id="cenaContorno" placeholder="Contorno" />
+      </div>
+
+      <button onclick="salvaMenu()">Salva Menu</button>
+      <button onclick="resetCronologia()" id="resetButton" class="hidden">Elimina Menu del Giorno</button>
+
+      <div id="adminSection" class="hidden">
+        <input type="file" id="pdfInput" accept="application/pdf" />
+        <button onclick="caricaPdf()" id="pdfButton">Carica PDF per tutti</button>
+        <div style="margin-top: 1em;">
+          <input type="text" id="adminNameChange" placeholder="Cambia nome admin" />
+          <button onclick="cambiaNomeAdmin()">Conferma nuovo nome</button>
+        </div>
+        <div style="margin-top: 1em;">
+          <input type="password" id="adminPassChange" placeholder="Nuova password admin" />
+          <button onclick="cambiaPasswordAdmin()">Cambia password</button>
+        </div>
+      </div>
+
+      <h3>PDF del giorno:</h3>
+      <iframe id="pdfViewer" width="100%" height="500px"></iframe>
+    </section>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script>
+let currentUser = "";
+let isAdmin = false;
+let adminPasswordValue = localStorage.getItem("adminPassword") || "admin123";
+
+const login = () => {
+  const name = document.getElementById("username").value.trim();
+  const adminPassword = document.getElementById("adminPass").value.trim();
+
+  if (!name) return alert("Inserisci un nome utente");
+
+  isAdmin = adminPassword === adminPasswordValue;
+  currentUser = name;
+
+  document.getElementById("loginSection").classList.add("hidden");
+  document.getElementById("menuSection").classList.remove("hidden");
+  document.getElementById("userDisplay").textContent = currentUser;
+
+  if (isAdmin) {
+    document.getElementById("adminSection").classList.remove("hidden");
+    document.getElementById("resetButton").classList.remove("hidden");
+  }
+
+  caricaPdfDaFirebase();
+};
+
+const cambiaNomeAdmin = () => {
+  const nuovoNome = document.getElementById("adminNameChange").value.trim();
+  if (!nuovoNome) return alert("Inserisci un nuovo nome admin");
+  if (!isAdmin) return alert("Solo l'admin può cambiare il proprio nome");
+
+  currentUser = nuovoNome;
+  document.getElementById("userDisplay").textContent = currentUser;
+  alert("Nome admin aggiornato a: " + currentUser);
+};
+
+const cambiaPasswordAdmin = () => {
+  const nuovaPass = document.getElementById("adminPassChange").value.trim();
+  if (!nuovaPass) return alert("Inserisci una nuova password");
+  if (!isAdmin) return alert("Solo l'admin può cambiare la password");
+
+  localStorage.setItem("adminPassword", nuovaPass);
+  adminPasswordValue = nuovaPass;
+  alert("Password admin aggiornata con successo.");
+};
+
+const salvaMenu = () => {
+  const giorno = document.getElementById("day").value;
+  if (!giorno) return alert("Inserisci il giorno del mese");
+  const menu = {
+    pranzo: {
+      primo: document.getElementById("pranzoPrimo").value,
+      secondo: document.getElementById("pranzoSecondo").value,
+      contorno: document.getElementById("pranzoContorno").value,
+    },
+    cena: {
+      primo: document.getElementById("cenaPrimo").value,
+      secondo: document.getElementById("cenaSecondo").value,
+      contorno: document.getElementById("cenaContorno").value,
+    },
+  };
+  db.ref("menu/" + giorno + "/" + currentUser).set(menu);
+  alert("Menu salvato!");
+};
+
+const resetCronologia = () => {
+  const giorno = document.getElementById("day").value;
+  if (!giorno) return alert("Inserisci il giorno da eliminare");
+  if (!isAdmin) return alert("Solo l'admin può eliminare la cronologia.");
+  if (confirm("Eliminare i dati del giorno " + giorno + "?")) {
+    db.ref("menu/" + giorno).remove();
+    alert("Menu del giorno eliminato.");
+  }
+};
+
+const caricaPdf = () => {
+  const file = document.getElementById("pdfInput").files[0];
+  if (!file || file.type !== "application/pdf") return alert("Carica un PDF valido.");
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(",")[1];
+    db.ref("pdf").set(base64);
+    alert("PDF caricato per tutti!");
+    document.getElementById("pdfButton").innerText = "Cambia PDF per tutti";
+  };
+  reader.readAsDataURL(file);
+};
+
+const caricaPdfDaFirebase = () => {
+  db.ref("pdf").on("value", (snapshot) => {
+    const base64 = snapshot.val();
+    if (base64) {
+      document.getElementById("pdfViewer").src = `data:application/pdf;base64,${base64}`;
+      document.getElementById("pdfButton").innerText = "Cambia PDF per tutti";
+    }
+  });
+};
+
+document.getElementById("themeToggle").addEventListener("change", (e) => {
+  document.body.classList.toggle("dark", e.target.checked);
+});
+  </script>
+</body>
+</html>
